@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useDomains, DomainsProvider } from "../";
+import { useDomains, DomainsProvider } from "../../lib";
 import { act, renderHook } from "@testing-library/react";
 
 const testPayload = { hello: "there" };
