@@ -1,13 +1,14 @@
-import { useReducer, Reducer } from "react";
+import React, { Reducer, useReducer, useCallback, createContext, useContext } from "react";
 
-type Payload = any;
+type Payload = unknown;
 type Domain = string;
 type Callback = (domainName: Domain, payload: Payload) => void;
-type Listener = {
-  id: Symbol,
-  callback: Callback
-};
+type Listener = { id: Symbol, callback: Callback };
 type Registry = Map<Domain, Set<Listener>>;
+type Context = {
+  subscribe: (domains: Domain[], callback: Callback) => () => void,
+  publish: (domains: Domain[], payload: Payload) => void
+}
 type Action = {
   domains: Domain[],
   listener?: Listener
@@ -17,7 +18,7 @@ type Action = {
 
 const registryStore: Registry = new Map();
 
-const reducer: Reducer<Registry, Action> = (registry, action) => {
+const registryReducer: Reducer<Registry, Action> = (registry, action) => {
   const getListeners = (domainName: string) => registry.get(domainName) || new Set();
 
   switch (action.type) {
@@ -51,23 +52,31 @@ const reducer: Reducer<Registry, Action> = (registry, action) => {
   }
 };
 
-export const useDomains = () => {
-  const [, dispatch] = useReducer(reducer, registryStore);
+const DomainsContext = createContext<Context>({
+  subscribe: () => () => {},
+  publish: () => {}
+});
 
-  const subscribe = (domains: Domain[], callback: Callback) => {
+export const DomainsProvider = (props: { children: JSX.Element }) => {
+  const [, dispatch] = useReducer(registryReducer, registryStore);
+
+  const subscribe = useCallback((domains: Domain[], callback: Callback) => {
     const listener = { id: Symbol(), callback };
     dispatch({ type: "subscribe", domains, listener });
     return () => {
       dispatch({ type: "unsubscribe", domains, listener });
     };
-  };
+  }, []);
 
-  const publish = (domains: Domain[], payload: Payload) => {
+  const publish = useCallback((domains: Domain[], payload: Payload) => {
     dispatch({ type: "publish", domains, payload });
-  };
+  }, []);
 
-  return {
-    subscribe,
-    publish
-  };
+  return (
+    <DomainsContext.Provider value={{ subscribe, publish }}>
+      {props.children}
+    </DomainsContext.Provider>
+  );
 };
+
+export const useDomains = () => useContext(DomainsContext)
