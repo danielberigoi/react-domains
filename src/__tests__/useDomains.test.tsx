@@ -2,9 +2,11 @@ import * as React from "react";
 import { useDomains, DomainsProvider } from "../../lib";
 import { act, renderHook } from "@testing-library/react";
 
-const testPayload = { hello: "there" };
-const testDomains = Array.from({ length: 10 }, (_, i) => `test-domain-${i}`);
+const DOMAINS_COUNT = 10;
+const HOOK_INSTANCES_COUNT = 50;
 
+const testPayload = { hello: "there" };
+const testDomains = Array.from({ length: DOMAINS_COUNT }, (_, i) => `test-domain-${i}`);
 const wrapper = (props: { children: any; }) => <DomainsProvider>{props.children}</DomainsProvider>;
 
 test("useDomains PubSub", () => {
@@ -26,7 +28,6 @@ test("useDomains Unsubscribe", () => {
   const { result } = renderHook(() => useDomains(), { wrapper });
   const { subscribe, publish } = result.current;
   const receivedData: Record<string, unknown> = {};
-
   let unsubscribe: Function | null = null;
 
   act(() => {
@@ -36,29 +37,29 @@ test("useDomains Unsubscribe", () => {
   });
 
   expect(unsubscribe).toBeInstanceOf(Function);
-
   for (const domainName of testDomains) {
     expect(receivedData[domainName]).toBeUndefined();
   }
 });
 
 test("useDomains Shared", () => {
-  const { result } = renderHook(() => [useDomains(), useDomains(), useDomains()], { wrapper });
-  const [a, b, c] = result.current;
-  const receivedDataA: Record<string, unknown> = {};
-  const receivedDataB: Record<string, unknown> = {};
-  const receivedDataC: Record<string, unknown> = {};
+  const { result } = renderHook(() => Array.from({ length: HOOK_INSTANCES_COUNT }, useDomains), { wrapper });
+  const hooks = result.current;
+  const receivedData: Record<string, unknown>[] = [];
 
   act(() => {
-    a.subscribe(testDomains, (d, p) => receivedDataA[d] = p);
-    b.subscribe(testDomains, (d, p) => receivedDataB[d] = p);
-    c.subscribe(testDomains, (d, p) => receivedDataC[d] = p);
-    a.publish(testDomains, testPayload);
+    for (const [i, hook] of hooks.entries()) {
+      hook.subscribe(testDomains, (d, p) => {
+        receivedData[i] = receivedData[i] || {};
+        receivedData[i][d] = p;
+      });
+    }
+    hooks[0].publish(testDomains, testPayload);
   });
 
-  for (const domainName of testDomains) {
-    expect(receivedDataA[domainName]).toEqual(testPayload);
-    expect(receivedDataB[domainName]).toEqual(testPayload);
-    expect(receivedDataC[domainName]).toEqual(testPayload);
+  for (const data of receivedData) {
+    for (const domainName of testDomains) {
+      expect(data[domainName]).toEqual(testPayload);
+    }
   }
 });
