@@ -1,13 +1,13 @@
 import React, { Reducer, useReducer, useCallback, createContext, useContext } from "react";
 
-type Payload = unknown;
-type Domain = string;
+type Payload<T = unknown> = T;
+type Domain<T = string> = T;
 type Callback = (domainName: Domain, payload: Payload) => void;
 type Listener = { id: Symbol, callback: Callback };
 type Registry = Map<Domain, Set<Listener>>;
 type Context = {
-  subscribe: (domains: Domain[], callback: Callback) => () => void,
-  publish: (domains: Domain[], payload: Payload) => void
+  subscribe: <T extends string>(domains: Domain<T>[], callback: Callback) => () => void,
+  publish: <T extends string, P = unknown>(domains: Domain<T>[], payload: Payload<P>) => void
 }
 type ReducerAction = {
   domains: Domain[],
