@@ -1,0 +1,28 @@
+{
+  "name": "react-domains",
+  "version": "0.1.0",
+  "description": "Simple data management for React based on domains",
+  "author": "danielberigoi",
+  "repository": "danielberigoi/react-topics",
+  "license": "MIT",
+  "keywords": [
+    "react",
+    "data",
+    "domains",
+    "pubsub",
+    "events",
+    "bus"
+  ],
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "files": ["lib/**/*"],
+  "scripts": {
+    "build": "tsc",
+    "prepare" : "npm run build",
+    "version": "git add -A src",
+    "postversion": "git push && git push --tags"
+  },
+  "devDependencies": {
+    "typescript": "^4.8.4"
+  }
+}
