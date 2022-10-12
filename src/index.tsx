@@ -9,7 +9,7 @@ type Context = {
   subscribe: (domains: Domain[], callback: Callback) => () => void,
   publish: (domains: Domain[], payload: Payload) => void
 }
-type Action = {
+type ReducerAction = {
   domains: Domain[],
   listener?: Listener
   payload?: Payload
@@ -18,14 +18,14 @@ type Action = {
 
 const registryStore: Registry = new Map();
 
-const registryReducer: Reducer<Registry, Action> = (registry, action) => {
-  const getListeners = (domainName: string) => registry.get(domainName) || new Set();
+const registryReducer: Reducer<Registry, ReducerAction> = (registry, action) => {
+  const getDomainListeners = (domainName: string) => registry.get(domainName) || new Set();
 
   switch (action.type) {
     case "subscribe": {
       if (!action.listener) return registry;
       for (const domainName of action.domains) {
-        const domainListeners = getListeners(domainName);
+        const domainListeners = getDomainListeners(domainName);
         domainListeners.add(action.listener);
         registry.set(domainName, domainListeners);
       }
@@ -33,7 +33,7 @@ const registryReducer: Reducer<Registry, Action> = (registry, action) => {
     }
     case "unsubscribe": {
       for (const domainName of action.domains) {
-        const domainListeners = getListeners(domainName);
+        const domainListeners = getDomainListeners(domainName);
         if (!action.listener || !domainListeners.size) continue;
         domainListeners.delete(action.listener);
       }
@@ -41,7 +41,7 @@ const registryReducer: Reducer<Registry, Action> = (registry, action) => {
     }
     case "publish": {
       for (const domainName of action.domains) {
-        const domainListeners = getListeners(domainName);
+        const domainListeners = getDomainListeners(domainName);
         if (!domainListeners.size) continue;
         domainListeners.forEach(listener => listener.callback(domainName, action.payload));
       }
