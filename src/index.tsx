@@ -1,82 +1,37 @@
-import React, { Reducer, useReducer, useCallback, createContext, useContext } from "react";
+import React, { useCallback } from 'react';
 
+type DomainName = string;
 type Payload<T = unknown> = T;
-type Domain<T = string> = T;
-type Callback = (domainName: Domain, payload: Payload) => void;
-type Listener = { id: Symbol, callback: Callback };
-type Registry = Map<Domain, Set<Listener>>;
-type Context = {
-  subscribe: <T extends string>(domains: Domain<T>[], callback: Callback) => () => void,
-  publish: <T extends string, P = unknown>(domains: Domain<T>[], payload: Payload<P>) => void
-}
-type ReducerAction = {
-  domains: Domain[],
-  listener?: Listener
-  payload?: Payload
-  type: "subscribe" | "unsubscribe" | "publish"
-};
+type Registry = Map<DomainName, Set<Callback>>;
+type Callback = (payload: Payload, domainName: DomainName, registry: Registry) => void;
 
 const registryStore: Registry = new Map();
 
-const registryReducer: Reducer<Registry, ReducerAction> = (registry, action) => {
-  const getDomainListeners = (domainName: string) => registry.get(domainName) || new Set();
-
-  switch (action.type) {
-    case "subscribe": {
-      if (!action.listener) return registry;
-      for (const domainName of action.domains) {
-        const domainListeners = getDomainListeners(domainName);
-        domainListeners.add(action.listener);
-        registry.set(domainName, domainListeners);
-      }
-      return registry;
+export const useDomains = () => {
+  const unsubscribe = useCallback((domains: DomainName[], callback: Callback) => {
+    for (const domainName of domains) {
+      const domainListeners = registryStore.get(domainName);
+      if (!domainListeners || !domainListeners.size) continue;
+      domainListeners.delete(callback);
     }
-    case "unsubscribe": {
-      for (const domainName of action.domains) {
-        const domainListeners = getDomainListeners(domainName);
-        if (!action.listener || !domainListeners.size) continue;
-        domainListeners.delete(action.listener);
-      }
-      return registry;
-    }
-    case "publish": {
-      for (const domainName of action.domains) {
-        const domainListeners = getDomainListeners(domainName);
-        if (!domainListeners.size) continue;
-        domainListeners.forEach(listener => listener.callback(domainName, action.payload));
-      }
-      return registry;
-    }
-    default:
-      return registry;
-  }
-};
-
-const DomainsContext = createContext<Context>({
-  subscribe: () => () => {},
-  publish: () => {}
-});
-
-export const DomainsProvider = (props: { children: JSX.Element }) => {
-  const [, dispatch] = useReducer(registryReducer, registryStore);
-
-  const subscribe = useCallback((domains: Domain[], callback: Callback) => {
-    const listener = { id: Symbol(), callback };
-    dispatch({ type: "subscribe", domains, listener });
-    return () => {
-      dispatch({ type: "unsubscribe", domains, listener });
-    };
   }, []);
 
-  const publish = useCallback((domains: Domain[], payload: Payload) => {
-    dispatch({ type: "publish", domains, payload });
+  const subscribe = useCallback((domains: DomainName[], callback: Callback) => {
+    for (const domainName of domains) {
+      const domainListeners = registryStore.get(domainName) || new Set();
+      domainListeners.add(callback);
+      registryStore.set(domainName, domainListeners);
+    }
+    return () => unsubscribe(domains, callback);
   }, []);
 
-  return (
-    <DomainsContext.Provider value={{ subscribe, publish }}>
-      {props.children}
-    </DomainsContext.Provider>
-  );
-};
+  const publish = useCallback((domains: DomainName[], payload: Payload) => {
+    for (const domainName of domains) {
+      const domainListeners = registryStore.get(domainName);
+      if (!domainListeners || !domainListeners.size) continue;
+      domainListeners.forEach(callback => callback(payload, domainName, registryStore));
+    }
+  }, []);
 
-export const useDomains = () => useContext(DomainsContext)
+  return { subscribe, publish };
+};

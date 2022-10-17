@@ -8,10 +8,9 @@
   "keywords": [
     "react",
     "data",
-    "domains",
+    "context",
     "pubsub",
-    "events",
-    "bus"
+    "domains"
   ],
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -23,7 +22,8 @@
     "prepare": "npm run build",
     "version": "git add -A src",
     "postversion": "git push && git push --tags",
-    "test": "jest --config jestconfig.json"
+    "test:run": "jest --config jestconfig.json",
+    "test:watch": "npm run test:run -- --watch"
   },
   "devDependencies": {
     "@testing-library/react": "^13.4.0",
